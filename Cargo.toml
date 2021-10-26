@@ -1,0 +1,10 @@
+[package]
+name = "whorl"
+version = "0.1.0"
+authors = ["Michael Gattozzi <self@mgattozzi.dev>"]
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+rand = "0.8.4"
