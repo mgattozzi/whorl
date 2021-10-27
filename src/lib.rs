@@ -469,9 +469,8 @@ pub mod runtime {
             // access to primitives so that we can modify them or load them using
             // Ordering to tell the compiler how it should handle giving out access
             // to the data. Atomics are a rather deep topic that's out of scope for
-            // this. Just note that we want to change a bool and usize safely across
-            // threads!
-            atomic::{AtomicBool, AtomicUsize, Ordering},
+            // this. Just note that we want to change a usize safely across threads!
+            atomic::{AtomicUsize, Ordering},
             // Arc is probably one of the more important types we'll use in the
             // executor. It lets us freely clone cheap references to the data which
             // we can use across threads while making it easy to not have to worry about
@@ -689,24 +688,20 @@ pub mod runtime {
         /// also need to make sure this is `Send + Sync` so we can use it across threads
         /// and so we lock the `Pin<Box<dyn Future>>` inside a `Mutex`.
         future: Mutex<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>,
-        /// We need a way to check if the runtime should block on this task that
-        /// can also work across threads. We use `AtomicBool` here to do just
-        /// that.
-        block: AtomicBool,
+        /// We need a way to check if the runtime should block on this task and
+        /// so we use a boolean here to check that!
+        block: bool,
     }
 
     impl Task {
         /// This constructs a new task by increasing the count in the runtime of
         /// how many tasks there are, pinning the `Future`, and wrapping it all
         /// in an `Arc`.
-        fn new(
-            blocking: bool,
-            future: impl Future<Output = ()> + Send + Sync + 'static,
-        ) -> Arc<Self> {
+        fn new(block: bool, future: impl Future<Output = ()> + Send + Sync + 'static) -> Arc<Self> {
             Runtime::get().tasks.fetch_add(1, Ordering::Relaxed);
             Arc::new(Task {
                 future: Mutex::new(Box::pin(future)),
-                block: AtomicBool::new(blocking),
+                block,
             })
         }
 
@@ -731,7 +726,7 @@ pub mod runtime {
 
         /// Checks the `block` field to see if the `Task` is blocking.
         fn will_block(&self) -> bool {
-            self.block.load(Ordering::Relaxed)
+            self.block
         }
     }
 
