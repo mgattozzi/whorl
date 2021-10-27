@@ -1,4 +1,4 @@
-//! # A Whorlwind Tour in Building a Rust Async Exectuor
+//! # A Whorlwind Tour in Building a Rust Async Executor
 //!
 //! whorl is a self contained library to run asynchronous Rust code with the
 //! following goals in mind:
