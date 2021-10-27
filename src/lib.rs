@@ -50,7 +50,7 @@ pub mod futures {
     //! would ours for instance. Now if a new library wanted to write a type that
     //! can, say, read from a network socket asynchronously, they'd have to write an
     //! implementation of `AsyncRead` for both executors. Not great. Another way
-    //! incompatiblities can arise is when those futures depend on the state of the
+    //! incompatibilities can arise is when those futures depend on the state of the
     //! runtime itself. Now that implementation is locked to the runtime.
     //!
     //! Sometimes this is actually okay; maybe the only way to implement
