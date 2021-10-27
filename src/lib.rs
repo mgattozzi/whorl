@@ -5,21 +5,21 @@
 //!
 //! - Keep it in one file. You should be able to read this code beginning to end
 //!   like a literate program and understand what each part does and how it fits
-//!   into the larger narrative. The code is organized to tell a story not
+//!   into the larger narrative. The code is organized to tell a story, not
 //!   necessarily how I would normally structure Rust code.
 //! - Teach others what is going on when you run async code in Rust with a runtime
 //!   like tokio. There is no magic, just many synchronous functions in an async
 //!   trenchcoat.
-//! - Explain why different runtimes are incompatible even if they all run async
-//!   programs
+//! - Explain why different runtimes are incompatible, even if they all run async
+//!   programs.
 //! - Only use the `std` crate to show that yes all the tools to build one exist
-//!   and if you wanted too, so could you
-//! - Use only stable Rust, you can build this today, no fancy features needed
-//! - Explain why `std` doesn't ship an executor just the building blocks
+//!   and if you wanted to, you could.
+//! - Use only stable Rust. You can build this today; no fancy features needed.
+//! - Explain why `std` doesn't ship an executor, but just the building blocks.
 //!
 //! What whorl isn't:
 //! - Performant, this is an adaptation of a class I gave at Rustconf a few
-//!   years back, it's first and foremost goal is to teach *how* an executor
+//!   years back. Its first and foremost goal is to teach *how* an executor
 //!   works, not the best way to make it fast. Reading the tokio source
 //!   code would be a really good thing if you want to learn about how to make
 //!   things performant and scalable.
@@ -27,46 +27,46 @@
 //!   less of them sometimes. Even me. You might disagree with an API design
 //!   choice or a way I did something here and that's fine. I just want you to
 //!   learn how it all works.
-//! - An introduction to Rust, this assumes you're somewhat familiar with it and
-//!   while I've done my best to break it down so that it is easy to understand
+//! - An introduction to Rust. This assumes you're somewhat familiar with it and
+//!   while I've done my best to break it down so that it is easy to understand,
 //!   that just might not be the case and I might gloss over details given I've
 //!   done Rust for over 6 years at this point. Expert blinders are real and if
-//!   things are confusing do let me know in the issue tracker I'll try my best
-//!   to make it easier to grok, but if you've never touched Rust before this is
+//!   things are confusing, do let me know in the issue tracker. I'll try my best
+//!   to make it easier to grok, but if you've never touched Rust before, this is
 //!   in all honesty not the best place to start.
 //!
-//! With all of that in mind let's dig into it all!
+//! With all of that in mind, let's dig into it all!
 
 pub mod futures {
     //! This is our module to provide certain kinds of futures to users. In the case
-    //! of our [`Sleep`] future here this is not dependent on the runtime in
+    //! of our [`Sleep`] future here, this is not dependent on the runtime in
     //! particular. We would be able to run this on any executor that knows how to
     //! run a future. Where incompatibilities arise is if you use futures or types
     //! that depend on the runtime or traits not defined inside of the standard
-    //! library. For instance `std` does not provide an `AsyncRead`/`AsyncWrite`
-    //! trait as of Oct 2021. As a result if you want to provide the functionality
-    //! to asynchronously read or write to something then that trait tends to be
-    //! written for an executor. So tokio would have it's own `AsyncRead` and so
+    //! library. For instance, `std` does not provide an `AsyncRead`/`AsyncWrite`
+    //! trait as of Oct 2021. As a result, if you want to provide the functionality
+    //! to asynchronously read or write to something, then that trait tends to be
+    //! written for an executor. So tokio would have its own `AsyncRead` and so
     //! would ours for instance. Now if a new library wanted to write a type that
-    //! can say read from a network socket asynchronously, they'd have to write an
+    //! can, say, read from a network socket asynchronously, they'd have to write an
     //! implementation of `AsyncRead` for both executors. Not great. Another way
     //! incompatiblities can arise is when those futures depend on the state of the
     //! runtime itself. Now that implementation is locked to the runtime.
     //!
-    //! Sometimes this is actually okay, maybe the only way to implement
+    //! Sometimes this is actually okay; maybe the only way to implement
     //! something is depending on the runtime state. In other ways it's not
-    //! great, things like `AsyncRead`/`AsyncWrite` would be perfect additions
+    //! great. Things like `AsyncRead`/`AsyncWrite` would be perfect additions
     //! to the standard library at some point since they describe things that
     //! everyone would need, much like how `Read`/`Write` are in stdlib and we
     //! all can write generic code that says I will work with anything that I
-    //! can read or write too.
+    //! can read or write to.
     //!
     //! This is why, however, things like Future, Context, Wake, Waker etc. all
     //! the components we need to build an executor are in the standard library.
     //! It means anyone can build an executor and accept most futures or work
     //! with most libraries without needing to worry about which executor they
     //! use. It reduces the burden on maintainers and users. In some cases
-    //! though we can't avoid it. Something to keep in mind as you navigate the
+    //! though, we can't avoid it. Something to keep in mind as you navigate the
     //! async ecosystem and see that some libraries can work on any executor or
     //! some ask you to opt into which executor you want with a feature flag.
     use std::{
@@ -78,7 +78,7 @@ pub mod futures {
 
     /// A future that will allow us to sleep and block further execution of the
     /// future it's used in without blocking the thread itself. It will be
-    /// polled and if the timer is not up then it will yield execution to the
+    /// polled and if the timer is not up, then it will yield execution to the
     /// executor.
     pub struct Sleep {
         /// What time the future was created at, not when it was started to be
@@ -92,7 +92,7 @@ pub mod futures {
     impl Sleep {
         /// A simple API whereby we take in how long the consumer of the API
         /// wants to sleep in ms and set now to the time of creation and
-        /// returning the type itself which is a Future.
+        /// return the type itself, which is a Future.
         pub fn new(ms: u128) -> Self {
             Self {
                 now: SystemTime::now(),
@@ -102,23 +102,23 @@ pub mod futures {
     }
 
     impl Future for Sleep {
-        /// We don't need to return a value for [`Sleep`] as we just want it to
-        /// block execution for awhile when someone calls `await` on it.
+        /// We don't need to return a value for [`Sleep`], as we just want it to
+        /// block execution for a while when someone calls `await` on it.
         type Output = ();
-        /// The actual implementation of the future where you can call poll on
+        /// The actual implementation of the future, where you can call poll on
         /// [`Sleep`] if it's pinned and the pin has a mutable reference to
         /// [`Sleep`]. In this case we don't need to utilize
         /// [`Context`][std::task::Context] here and in fact you often will not.
         /// It only serves to provide access to a `Waker` in case you need to
-        /// wake the task. Since we always do that in our executor we don't need
+        /// wake the task. Since we always do that in our executor, we don't need
         /// to do so here, but you might find if you manually write a future
-        /// that you need access to the waker to do a special way to wake up the
-        /// task. Waking up the task just means we put it back into the executor
+        /// that you need access to the waker to wake up the task in a special
+        /// way. Waking up the task just means we put it back into the executor
         /// to be polled again.
         fn poll(self: Pin<&mut Self>, _: &mut Context) -> Poll<Self::Output> {
-            // If enough time has passed then when we're polled we say that
-            // we're ready and the future has slept enough. If not we just say
-            // that we're pending and need to be re polled because not enough
+            // If enough time has passed, then when we're polled we say that
+            // we're ready and the future has slept enough. If not, we just say
+            // that we're pending and need to be re-polled, because not enough
             // time has passed.
             if self.now.elapsed().unwrap().as_millis() >= self.ms {
                 Poll::Ready(())
@@ -128,14 +128,14 @@ pub mod futures {
         }
     }
 
-    // In practice what we do when we sleep is something like this:
+    // In practice, what we do when we sleep is something like this:
     // ```
     // async fn example() {
     //     Sleep::new(2000).await;
     // }
     // ```
     //
-    // Which is neat and all but how is that future being polled? Well this
+    // Which is neat and all but how is that future being polled? Well, this
     // all desugars out to:
     // ```
     // fn example() -> impl Future<Output = ()> {
@@ -143,7 +143,7 @@ pub mod futures {
     //     loop {
     //        match Pin::new(sleep).as_mut().poll(&mut context) {
     //            Poll::Ready(()) => (),
-    //            // You cant'
+    //            // You can't
     //            Poll::Pending => yield,
     //        }
     //     }
@@ -151,8 +151,8 @@ pub mod futures {
 }
 
 #[test]
-/// To understand what we'll build we need to see and understand what we will
-/// run and the output we expect to see. Note that if you wish to run this test
+/// To understand what we'll build, we need to see and understand what we will
+/// run and the output we expect to see. Note that if you wish to run this test,
 /// you should use the command `cargo test -- --nocapture` so that you can see
 /// the output of `println` being used, otherwise it'll look like nothing is
 /// happening at all for a while.
@@ -162,7 +162,7 @@ fn library_test() {
     // asynchronous nature of the code.
     use crate::{futures::Sleep, runtime};
     // We want some random numbers so that the sleep futures finish at different
-    // times. If we didn't then the code would look synchronous in nature even
+    // times. If we didn't, then the code would look synchronous in nature even
     // if it isn't. This is because we schedule and poll tasks in what is
     // essentially a loop unless we use block_on.
     use rand::Rng;
@@ -173,10 +173,10 @@ fn library_test() {
     // This function causes the runtime to block on this future. It does so by
     // just taking this future and polling it till completion in a loop and
     // ignoring other tasks on the queue. Sometimes you need to block on async
-    // functions and treat them as sync. A good example is running a webserver,
-    // you'd want it to always be running, not just sometimes, and so blocking
+    // functions and treat them as sync. A good example is running a webserver.
+    // You'd want it to always be running, not just sometimes, and so blocking
     // it makes sense. In a single threaded executor this would block all
-    // execution. In our case our executor is single threaded, technically, it
+    // execution. In our case our executor is single-threaded. Technically it
     // runs on a separate thread from our program and so blocks running other
     // tasks, but the main function will keep running. This is why we call
     // `wait` to make sure we wait till all futures finish executing before
@@ -208,10 +208,10 @@ fn library_test() {
                 // This future will sleep for a certain amount of time before
                 // continuing execution
                 Sleep::new(SECOND * random).await;
-                // After the future waits for a while it then spawns another
+                // After the future waits for a while, it then spawns another
                 // future before printing that it finished. This spawned future
                 // then sleeps for a while and then prints out when it's done.
-                // Since we're spawning futures inside futures the order of
+                // Since we're spawning futures inside futures, the order of
                 // execution can change.
                 runtime::spawn(async move {
                     Sleep::new(SECOND * random2).await;
@@ -223,8 +223,8 @@ fn library_test() {
         // To demonstrate that block_on works we block inside this future before
         // we even begin polling the other futures.
         runtime::block_on(async {
-            // This sleeps longer than any of the spawned functions but we poll
-            // this to completion first even if we await here
+            // This sleeps longer than any of the spawned functions, but we poll
+            // this to completion first even if we await here.
             Sleep::new(11000).await;
             println!("Blocking Function Polled To Completion");
         });
@@ -236,7 +236,7 @@ fn library_test() {
     println!("End of Asynchronous Execution");
 
     // When all is said and done when we run this test we should get output that
-    // looks somewhat like this (though in different orders):
+    // looks somewhat like this (though in different order):
     //
     // Begin Asynchronous Execution
     // Blocking Function Polled To Completion
@@ -262,8 +262,8 @@ pub mod lazy {
     use std::{
         // We don't want to use `static mut` since that's UB and so instead we need
         // a way to set our statics for our code at runtime. Since we want this to
-        // work across threads we can't use `Cell` or `RefCell` here, and since it's
-        // a static we can't use a `Mutex` as it'w `new` function is not const. That
+        // work across threads, we can't use `Cell` or `RefCell` here, and since it's
+        // a static we can't use a `Mutex` as its `new` function is not const. That
         // means we need to use the actual type that all of these types use to hold
         // the data: [`UnsafeCell`]! We'll see below where this is used and how, but
         // just know that this will let us set some global values at runtime!
@@ -288,20 +288,20 @@ pub mod lazy {
             // time.
             MaybeUninit,
         },
-        // Sometimes you need to make sure that something is only done once and
+        // Sometimes you need to make sure that something is done once and
         // only once. We also might want to make sure that no matter on what
-        // thread this holds true. Enter `Once` a really great synchronization
+        // thread this holds true. Enter `Once`, a really great synchronization
         // type that's around for just this purpose. It also has the nice
-        // property that if say it get's called to be initialized across many
+        // property that if, say, it gets called to be initialized across many
         // threads that it only runs the initialization function once and has
         // the other threads wait until it's done before letting them continue
         // with their execution.
         sync::Once,
     };
     /// We want to have a static value that's set at runtime and this executor will
-    /// only use libstd. As of 10/26/21 the lazy types in std are still only on
-    /// nightly and we can't use another crate so crates like `once_cell` and
-    /// `lazy_static` are also out. Thus we create our own Lazy type so that it will
+    /// only use libstd. As of 10/26/21, the lazy types in std are still only on
+    /// nightly and we can't use another crate, so crates like `once_cell` and
+    /// `lazy_static` are also out. Thus, we create our own Lazy type so that it will
     /// calculate the value only once and only when we need it.
     pub struct Lazy<T> {
         /// `Once` is a neat synchronization primitive that we just talked about
@@ -311,10 +311,10 @@ pub mod lazy {
         /// thread safety!
         once: Once,
         /// The cell is where we hold our data. The use of `UnsafeCell` is what lets
-        /// us sidestep Rust's guarantees provided we actually use it correctly and
+        /// us sidestep Rust's guarantees, provided we actually use it correctly and
         /// still uphold those guarantees. Rust can't always validate that
         /// everything is safe, even if it is, and so the flexibility it provides
-        /// with certain library types and unsafe code let's us handle those cases
+        /// with certain library types and unsafe code lets us handle those cases
         /// where the compiler cannot possibly understand it's okay. We also use the
         /// `MaybeUninit` type here to avoid undefined behavior with uninitialized
         /// data. We'll need to drop the inner value ourselves though to avoid
@@ -361,9 +361,9 @@ pub mod lazy {
             //
             // We now want to actually retrieve the value we wrote so that we can
             // use it! We get the `*mut MaybeUninit` from the cell and turn it into
-            // a `&MaybeUninit` which then let's us call `assume_init_ref` to get
-            // the `&T`. This function much like `get` is also unsafe but since we
-            // know that the value is initialized then it's fine to call this!
+            // a `&MaybeUninit` which then lets us call `assume_init_ref` to get
+            // the `&T`. This function - much like `get` - is also unsafe, but since we
+            // know that the value is initialized it's fine to call this!
             unsafe { &(*self.cell.get()).assume_init_ref() }
         }
     }
@@ -389,7 +389,7 @@ pub mod lazy {
     /// `Sync` then we can't use `Lazy` for a static. Note that auto traits are a
     /// compiler specific thing where if everything in a type implements a trait
     /// then that type also implements it. `Send` and `Sync` are great examples of
-    /// this where any type become `Send` and/or `Sync` if all it's types implement
+    /// this where any type becomes `Send` and/or `Sync` if all its types implement
     /// them too! `UnsafeCell` specifically implements !Sync and since it is not
     /// `Sync` then it can't be used in a `static`. We can override this behavior
     /// though by implementing these traits for `Lazy` here though. We're saying
@@ -408,16 +408,16 @@ pub mod lazy {
 pub mod runtime {
     use std::{
         // We need a place to put the futures that get spawned onto the runtime
-        // somewhere and while we could use something like a `Vec` we chose a
+        // somewhere and while we could use something like a `Vec`, we chose a
         // `LinkedList` here. One reason being that we can put tasks at the front of
         // the queue if they're a blocking future. The other being that we use a
         // constant amount of memory. We only ever use as much as we need for tasks.
         // While this might not matter at a small scale, this does at a larger
         // scale. If your `Vec` never gets smaller and you have a huge burst of
-        // tasks under say heavy http loads in a web server then you end up eating
+        // tasks under, say, heavy HTTP loads in a web server, then you end up eating
         // up a lot of memory that could be used for other things running on the
         // same machine. In essence what you've created is a kind of memory leak
-        // unless you make sure to resize the Vec. @mycoliza did a good twitter
+        // unless you make sure to resize the `Vec`. @mycoliza did a good Twitter
         // thread on this here if you want to learn more!
         //
         // https://twitter.com/mycoliza/status/1298399240121544705
@@ -425,13 +425,13 @@ pub mod runtime {
         // A Future is the fundamental block of any async executor. It is a trait
         // that types can make or an unnameable type that an async function can
         // make. We say it's unnameable because you don't actually define the type
-        // anywhere and just like a closure you can only specify it's behavior with
-        // a trait, you can't give it a name like you would when you do something
-        // like `pub struct Foo;`. These types whether nameable or not represent all
+        // anywhere and just like a closure you can only specify its behavior with
+        // a trait. You can't give it a name like you would when you do something
+        // like `pub struct Foo;`. These types, whether nameable or not, represent all
         // the state needed to have an asynchronous function. You poll the future to
-        // drive it's computation along like a state machine that makes transistions
+        // drive its computation along like a state machine that makes transistions
         // from one state to another till it finishes. If you reach a point where it
-        // would yield execution then it needs to be rescheduled to be polled again
+        // would yield execution, then it needs to be rescheduled to be polled again
         // in the future. It yields though so that you can drive other futures
         // forward in their computation!
         //
@@ -441,7 +441,7 @@ pub mod runtime {
         // and when to yield to the executor. You'll see later that we have an
         // example of writing a `Sleep` future by hand as well as unnameable async
         // code using `async { }` and we'll expand on when those yield and what it
-        // desugars too in practice. We're here to demystify the mystical magic of
+        // desugars to in practice. We're here to demystify the mystical magic of
         // async code.
         future::Future,
         // Ah Pin. What a confusing type. The best way to think about `Pin` is that
@@ -449,11 +449,11 @@ pub mod runtime {
         // actually pin the value, it just notes that the value will not move, much
         // in the same way that you can specify Rust lifetimes. It only records what
         // the lifetime already is, it doesn't actually create said lifetime! At the
-        // bottom of this I've linked some more in depth reading on Pin, but if you
-        // don't know much about Pin starting with the standard library docs isn't a
+        // bottom of this, I've linked some more in depth reading on Pin, but if you
+        // don't know much about Pin, starting with the standard library docs isn't a
         // bad place.
         //
-        // Note Unpin is also a confusing name and if you think of it as
+        // Note: Unpin is also a confusing name and if you think of it as
         // MaybePinned you'll have a better time as the value may be pinned or it
         // may not be pinned. It just marks that if you have a Pinned value and it
         // moves that's okay and it's safe to do so, whereas for types that do not
@@ -473,7 +473,7 @@ pub mod runtime {
             // threads!
             atomic::{AtomicBool, AtomicUsize, Ordering},
             // Arc is probably one of the more important types we'll use in the
-            // executor. It lets us freely clone cheap references to the data and that
+            // executor. It lets us freely clone cheap references to the data which
             // we can use across threads while making it easy to not have to worry about
             // complicated lifetimes since we can easily own the data with a call to
             // clone. It's one of my favorite types in the standard library.
@@ -483,7 +483,7 @@ pub mod runtime {
             // poisoning (when a thread panics with a hold on the lock), which is
             // not something I've in practice run into (others might!) and so calling
             // `lock().unwrap()` everywhere can get a bit tedious. That being said
-            // Mutex's are great. You make sure only one thing has access to the data
+            // Mutexes are great. You make sure only one thing has access to the data
             // at any given time to access or change it.
             Mutex,
         },
@@ -497,10 +497,10 @@ pub mod runtime {
             // that we can call it ourselves inside the future if need be!
             Context,
             // Poll is the enum returned from when we poll a `Future`. When we
-            // call `poll` this drives the `Future` forward until it either
+            // call `poll`, this drives the `Future` forward until it either
             // yields or it returns a value. `Poll` represents that. It is
             // either `Poll::Pending` or `Poll::Ready(T)`. We use this to
-            // determine if a `Future` is done or not and if not then we should
+            // determine if a `Future` is done or not and if not, then we should
             // keep polling it.
             Poll,
             // This is a trait to define how something in an executor is woken
@@ -518,7 +518,7 @@ pub mod runtime {
             // It's kind of up to the executor how it wants to do it. Maybe how
             // it schedules things is different or it has special behavior for
             // certain `Future`s that it ships with it. The key thing to note
-            // here is that this is how tasks are supposed to be resheduled for
+            // here is that this is how tasks are supposed to be rescheduled for
             // polling.
             Waker,
         },
@@ -533,15 +533,15 @@ pub mod runtime {
     /// using synchronous functions that drive tasks in a concurrent manner.
     /// They could also be run concurrently and/or in parallel if the executor
     /// is multithreaded. Tokio is a good example of this model where it runs
-    /// tasks in parallel on separate threads and if it has more tasks then
-    /// threads it runs them concurrently on those threads.
+    /// tasks in parallel on separate threads and if it has more tasks than
+    /// threads, it runs them concurrently on those threads.
     ///
     /// Our `Runtime` in particular has:
     pub(crate) struct Runtime {
-        /// A queue to place all of the tasks that are spawned on the runtime
+        /// A queue to place all of the tasks that are spawned on the runtime.
         queue: Queue,
         /// A `Spawner` which can spawn tasks onto our queue for us easily and
-        /// lets us call `spawn` and `block_on` with ease
+        /// lets us call `spawn` and `block_on` with ease.
         spawner: Spawner,
         /// A counter for how many Tasks are on the runtime. We use this in
         /// conjunction with `wait` to block until there are no more tasks on
@@ -552,8 +552,8 @@ pub mod runtime {
     /// Our runtime type is designed such that we only ever have one running.
     /// You might want to have multiple running in production code though. For
     /// instance you limit what happens on one runtime for a free tier version
-    /// and let the non free version use as many resources as it can. We
-    /// implement 3 functions, `start`to actually get async code running, `get`
+    /// and let the non-free version use as many resources as it can. We
+    /// implement 3 functions: `start` to actually get async code running, `get`
     /// so that we can get references to the runtime, and `spawner` a
     /// convenience function to get a `Spawner` to spawn tasks onto the `Runtime`.
     impl Runtime {
@@ -562,7 +562,7 @@ pub mod runtime {
         /// if it exists polls it or continues if not. It also checks if the
         /// task should block and if it does it just keeps polling the task
         /// until it completes! Otherwise it wakes the task to put it back in
-        /// the queue in the non blocking version if it's still pending.
+        /// the queue in the non-blocking version if it's still pending.
         /// Otherwise it drops the task by not putting it back into the queue
         /// since it's completed.
         fn start() {
@@ -599,7 +599,7 @@ pub mod runtime {
         // This is okay to call because any calls to `Runtime::get()` in here will be blocked
         // until we fully initialize the `Lazy` type thanks to the `call_once`
         // function on `Once` which blocks until it finishes initializing.
-        // So we start the runtime inside the initialization function which depends
+        // So we start the runtime inside the initialization function, which depends
         // on it being initialized, but it is able to wait until the runtime is
         // actually initialized and so it all just works.
         Runtime::start();
@@ -621,7 +621,7 @@ pub mod runtime {
     // run on it. We hand out access to it using a Mutex that has an Arc
     // pointing to it so that we can make sure only one thing is touching the
     // queue state at a given time. This isn't the most efficient pattern
-    // especially if we wanted to have the runtime be truly multi threaded, but
+    // especially if we wanted to have the runtime be truly multi-threaded, but
     // for the purposes of the code this works just fine.
     type Queue = Arc<Mutex<LinkedList<Arc<Task>>>>;
 
@@ -686,7 +686,7 @@ pub mod runtime {
         /// This is the actual `Future` we will poll inside of a `Task`. We `Box`
         /// and `Pin` the `Future` when we create a task so that we don't need
         /// to worry about pinning or more complicated things in the runtime. We
-        /// also need to make this is `Send + Sync` so we can use it across threads
+        /// also need to make sure this is `Send + Sync` so we can use it across threads
         /// and so we lock the `Pin<Box<dyn Future>>` inside a `Mutex`.
         future: Mutex<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>,
         /// We need a way to check if the runtime should block on this task that
@@ -746,7 +746,7 @@ pub mod runtime {
     }
 
     /// `Wake` is the crux of all of this executor as it's what lets us
-    /// reschedule a task when it's ready to be polled. Wor our implementation
+    /// reschedule a task when it's ready to be polled. For our implementation
     /// we do a simple check to see if the task blocks or not and then spawn it back
     /// onto the executor in an appropriate manner.
     impl Wake for Task {
@@ -766,10 +766,10 @@ pub mod runtime {
 // lot to take in, but at the end of the day it's just keeping track of state
 // and a couple of loops to get it all working. If you want to see how to write
 // a more performant executor that's being used in production and works really
-// well then consider reading the source code for `tokio`. I myself learned
+// well, then consider reading the source code for `tokio`. I myself learned
 // quite a bit reading it and it's fascinating and fairly well documented.
-// If you're interested in learning even more about async rust or you want to
-// learn more in depth things about it then I recommend reading this list list
+// If you're interested in learning even more about async Rust or you want to
+// learn more in-depth things about it, then I recommend reading this list
 // of resources and articles I've found useful that are worth your time:
 //
 // - Asynchronous Programming in Rust: https://rust-lang.github.io/async-book/01_getting_started/01_chapter.html
@@ -781,7 +781,7 @@ pub mod runtime {
 //   - Part 2: https://tmandry.gitlab.io/blog/posts/optimizing-await-2/
 // - The standard library docs have even more information and are worth reading.
 //   Below are the modules that contain all the types and traits necessary to
-//   actually create and run async code. They're fairly in depth and sometimes
+//   actually create and run async code. They're fairly in-depth and sometimes
 //   require reading other parts to understand a specific part in a really weird
 //   dependency graph of sorts, but armed with the knowledge of this executor it
 //   should be a bit easier to grok what it all means!
