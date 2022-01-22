@@ -384,7 +384,7 @@ pub mod lazy {
 
     /// Now you might be asking yourself why we are implementing these traits by
     /// hand and also why it's unsafe to do so. `UnsafeCell`is the big reason here
-    /// and you can see this by uncommenting these lines and trying to compile the
+    /// and you can see this by commenting these two lines and trying to compile the
     /// code. Because of how auto traits work then if any part is not `Send` and
     /// `Sync` then we can't use `Lazy` for a static. Note that auto traits are a
     /// compiler specific thing where if everything in a type implements a trait
