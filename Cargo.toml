@@ -1,10 +1,10 @@
 [package]
 name = "whorl"
-version = "0.1.0"
-authors = ["Michael Gattozzi <self@mgattozzi.dev>"]
+version = "0.2.0"
+authors = ["Michael Gattozzi <michael@ductile.systems>"]
 edition = "2021"
 
 [dependencies]
 
 [dev-dependencies]
-rand = "0.8.4"
+rand = "0.8.5"

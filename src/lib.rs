@@ -13,24 +13,26 @@
 //! - Explain why different runtimes are incompatible, even if they all run async
 //!   programs.
 //! - Only use the `std` crate to show that yes all the tools to build one exist
-//!   and if you wanted to, you could.
+//!   and if you wanted to, you could. Note we only use the rand crate for our
+//!   example test, it is not used for the runtime itself
 //! - Use only stable Rust. You can build this today; no fancy features needed.
 //! - Explain why `std` doesn't ship an executor, but just the building blocks.
 //!
 //! What whorl isn't:
-//! - Performant, this is an adaptation of a class I gave at Rustconf a few
-//!   years back. Its first and foremost goal is to teach *how* an executor
+//! - Performant, this is an adaptation of a class I gave at Rustconf back in
+//!   2018. Its first and foremost goal is to teach *how* an executor
 //!   works, not the best way to make it fast. Reading the tokio source
 //!   code would be a really good thing if you want to learn about how to make
 //!   things performant and scalable.
 //! - "The Best Way". Programmers have opinions, I think we should maybe have
 //!   less of them sometimes. Even me. You might disagree with an API design
 //!   choice or a way I did something here and that's fine. I just want you to
-//!   learn how it all works.
+//!   learn how it all works. Async executors also have trade offs so one way
+//!   might work well for your code and not for another person's code.
 //! - An introduction to Rust. This assumes you're somewhat familiar with it and
 //!   while I've done my best to break it down so that it is easy to understand,
 //!   that just might not be the case and I might gloss over details given I've
-//!   done Rust for over 6 years at this point. Expert blinders are real and if
+//!   used Rust since 1.0 came out in 2015. Expert blinders are real and if
 //!   things are confusing, do let me know in the issue tracker. I'll try my best
 //!   to make it easier to grok, but if you've never touched Rust before, this is
 //!   in all honesty not the best place to start.
@@ -44,7 +46,7 @@ pub mod futures {
     //! run a future. Where incompatibilities arise is if you use futures or types
     //! that depend on the runtime or traits not defined inside of the standard
     //! library. For instance, `std` does not provide an `AsyncRead`/`AsyncWrite`
-    //! trait as of Oct 2021. As a result, if you want to provide the functionality
+    //! trait as of Oct 2024. As a result, if you want to provide the functionality
     //! to asynchronously read or write to something, then that trait tends to be
     //! written for an executor. So tokio would have its own `AsyncRead` and so
     //! would ours for instance. Now if a new library wanted to write a type that
@@ -58,8 +60,8 @@ pub mod futures {
     //! great. Things like `AsyncRead`/`AsyncWrite` would be perfect additions
     //! to the standard library at some point since they describe things that
     //! everyone would need, much like how `Read`/`Write` are in stdlib and we
-    //! all can write generic code that says I will work with anything that I
-    //! can read or write to.
+    //! all can write generic code that says, "I will work with anything that I
+    //! can read or write to."
     //!
     //! This is why, however, things like Future, Context, Wake, Waker etc. all
     //! the components we need to build an executor are in the standard library.
@@ -138,12 +140,13 @@ pub mod futures {
     // Which is neat and all but how is that future being polled? Well, this
     // all desugars out to:
     // ```
-    // fn example() -> impl Future<Output = ()> {
+    // async fn example() {
     //     let mut sleep = Sleep::new(2000);
     //     loop {
     //        match Pin::new(sleep).as_mut().poll(&mut context) {
     //            Poll::Ready(()) => (),
-    //            // You can't
+    //            // You can't write yield yourself as this is an unstable
+    //            // feature currently
     //            Poll::Pending => yield,
     //        }
     //     }
@@ -167,7 +170,7 @@ fn library_test() {
     // essentially a loop unless we use block_on.
     use rand::Rng;
     // We need to know the time to show when a future completes. Time is cursed
-    // and it's best we dabble not too much in it.
+    // and it's best we do not dabble too much in it.
     use std::time::SystemTime;
 
     // This function causes the runtime to block on this future. It does so by
@@ -236,7 +239,7 @@ fn library_test() {
     println!("End of Asynchronous Execution");
 
     // When all is said and done when we run this test we should get output that
-    // looks somewhat like this (though in different order):
+    // looks somewhat like this (though in different orders in each execution):
     //
     // Begin Asynchronous Execution
     // Blocking Function Polled To Completion
@@ -256,153 +259,6 @@ fn library_test() {
     // Spawned Fn #03: Inner 1634664698
     // Spawned Fn #02: Inner 1634664702
     // End of Asynchronous Execution
-}
-
-pub mod lazy {
-    use std::{
-        // We don't want to use `static mut` since that's UB and so instead we need
-        // a way to set our statics for our code at runtime. Since we want this to
-        // work across threads, we can't use `Cell` or `RefCell` here, and since it's
-        // a static we can't use a `Mutex` as its `new` function is not const. That
-        // means we need to use the actual type that all of these types use to hold
-        // the data: [`UnsafeCell`]! We'll see below where this is used and how, but
-        // just know that this will let us set some global values at runtime!
-        cell::UnsafeCell,
-        mem::{
-            // If you want to import the module to use while also specifying other
-            // imports you can use self to do that. In this case it will let us call
-            // `mem::swap` while also letting us just use `MaybeUninit` without any
-            // extra paths prepended to it. I tend to do this for functions that are
-            // exported at the module level and not encapsulated in a type so that
-            // it's more clear where it comes from, but that's a personal
-            // preference! You could just as easily import `swap` here instead!
-            self,
-            // `MaybeUninit` is the only way to represent a value that's possibly
-            // uninitialized without causing instant UB with `std::mem::uninitialized`
-            // or `std::mem::zeroed`. There's more info in the docs here:
-            // https://doc.rust-lang.org/stable/std/mem/union.MaybeUninit.html#initialization-invariant
-            //
-            // We need this so that we can have an UnsafeCell with nothing inside it
-            // until we initialize it once and only once without causing UB and
-            // having nasal demons come steal random data and give everyone a bad
-            // time.
-            MaybeUninit,
-        },
-        // Sometimes you need to make sure that something is done once and
-        // only once. We also might want to make sure that no matter on what
-        // thread this holds true. Enter `Once`, a really great synchronization
-        // type that's around for just this purpose. It also has the nice
-        // property that if, say, it gets called to be initialized across many
-        // threads that it only runs the initialization function once and has
-        // the other threads wait until it's done before letting them continue
-        // with their execution.
-        sync::Once,
-    };
-    /// We want to have a static value that's set at runtime and this executor will
-    /// only use libstd. As of 10/26/21, the lazy types in std are still only on
-    /// nightly and we can't use another crate, so crates like `once_cell` and
-    /// `lazy_static` are also out. Thus, we create our own Lazy type so that it will
-    /// calculate the value only once and only when we need it.
-    pub struct Lazy<T> {
-        /// `Once` is a neat synchronization primitive that we just talked about
-        /// and this is where we need it! We want to make sure we only write into
-        /// the value of the Lazy type once and only once. Otherwise we'd have some
-        /// really bad things happen if we let static values be mutated. It'd break
-        /// thread safety!
-        once: Once,
-        /// The cell is where we hold our data. The use of `UnsafeCell` is what lets
-        /// us sidestep Rust's guarantees, provided we actually use it correctly and
-        /// still uphold those guarantees. Rust can't always validate that
-        /// everything is safe, even if it is, and so the flexibility it provides
-        /// with certain library types and unsafe code lets us handle those cases
-        /// where the compiler cannot possibly understand it's okay. We also use the
-        /// `MaybeUninit` type here to avoid undefined behavior with uninitialized
-        /// data. We'll need to drop the inner value ourselves though to avoid
-        /// memory leaks because data may not be initialized and so the type won't
-        /// call drop when it's not needed anymore. We could get away with not doing
-        /// it though since we're only using it for static values, but let's be
-        /// thorough here!
-        cell: UnsafeCell<MaybeUninit<T>>,
-    }
-
-    impl<T> Lazy<T> {
-        /// We must construct the type using a const fn so that it can be used in
-        /// `static` contexts. The nice thing is that all of the function calls we
-        /// make here are also const and so this will just work. The compiler will
-        /// figure it all out and make sure the `Lazy` static value exists in our
-        /// final binary.
-        pub const fn new() -> Self {
-            Self {
-                once: Once::new(),
-                cell: UnsafeCell::new(MaybeUninit::uninit()),
-            }
-        }
-        /// We want a way to check if we have initialized the value so that we can
-        /// get the value from cell without causing who knows what kind of bad
-        /// things if we read garbage data.
-        fn is_initialized(&self) -> bool {
-            self.once.is_completed()
-        }
-
-        /// This function will either grab a reference to the type or creates it
-        /// with a given function
-        pub fn get_or_init(&self, func: fn() -> T) -> &T {
-            self.once.call_once(|| {
-                // /!\ SAFETY /!\: We only ever write to the cell once
-                //
-                // We first get a `*mut MaybeUninit` to the cell and turn it into a
-                // `&mut MaybeUninit`. That's when we call `write` on `MaybeUninit`
-                // to pass the value of the function into the now initialized
-                // `MaybeUninit`.
-                (unsafe { &mut *self.cell.get() }).write(func());
-            });
-            // /!\ SAFETY /!\: We already made sure `Lazy` was initialized with our call to
-            // `call_once` above
-            //
-            // We now want to actually retrieve the value we wrote so that we can
-            // use it! We get the `*mut MaybeUninit` from the cell and turn it into
-            // a `&MaybeUninit` which then lets us call `assume_init_ref` to get
-            // the `&T`. This function - much like `get` - is also unsafe, but since we
-            // know that the value is initialized it's fine to call this!
-            unsafe { &(*self.cell.get()).assume_init_ref() }
-        }
-    }
-
-    /// We now need to implement `Drop` by hand specifically because `MaybeUninit`
-    /// will need us to drop the value it holds by ourselves only if it exists. We
-    /// check if the value exists, swap it out with an uninitialized value and then
-    /// change `MaybeUninit<T>` into just a `T` with a call to `assume_init` and
-    /// then call `drop` on `T` itself
-    impl<T> Drop for Lazy<T> {
-        fn drop(&mut self) {
-            if self.is_initialized() {
-                let old = mem::replace(unsafe { &mut *self.cell.get() }, MaybeUninit::uninit());
-                drop(unsafe { old.assume_init() });
-            }
-        }
-    }
-
-    /// Now you might be asking yourself why we are implementing these traits by
-    /// hand and also why it's unsafe to do so. `UnsafeCell`is the big reason here
-    /// and you can see this by commenting these two lines and trying to compile the
-    /// code. Because of how auto traits work then if any part is not `Send` and
-    /// `Sync` then we can't use `Lazy` for a static. Note that auto traits are a
-    /// compiler specific thing where if everything in a type implements a trait
-    /// then that type also implements it. `Send` and `Sync` are great examples of
-    /// this where any type becomes `Send` and/or `Sync` if all its types implement
-    /// them too! `UnsafeCell` specifically implements !Sync and since it is not
-    /// `Sync` then it can't be used in a `static`. We can override this behavior
-    /// though by implementing these traits for `Lazy` here though. We're saying
-    /// that this is okay and that we uphold the invariants to be `Send + Sync`. We
-    /// restrict it though and say that this is only the case if the type `T`
-    /// *inside* `Lazy` is `Sync` only if `T` is `Send + Sync`. We know then that
-    /// this is okay because the type in `UnsafeCell` can be safely referenced
-    /// through an `&'static` and that the type it holds is also safe to use across
-    /// threads. This means we can set `Lazy` as `Send + Sync` even though the
-    /// internal `UnsafeCell` is !Sync in a safe way since we upheld the invariants
-    /// for these traits.
-    unsafe impl<T: Send> Send for Lazy<T> {}
-    unsafe impl<T: Send + Sync> Sync for Lazy<T> {}
 }
 
 pub mod runtime {
@@ -470,6 +326,8 @@ pub mod runtime {
             // Ordering to tell the compiler how it should handle giving out access
             // to the data. Atomics are a rather deep topic that's out of scope for
             // this. Just note that we want to change a usize safely across threads!
+            // If you want to learn more Mara Bos' book `Rust Atomics and Locks` is
+            // incredibly good:  https://marabos.nl/atomics/
             atomic::{AtomicUsize, Ordering},
             // Arc is probably one of the more important types we'll use in the
             // executor. It lets us freely clone cheap references to the data which
@@ -571,18 +429,16 @@ pub mod runtime {
                     None => continue,
                 };
                 if task.will_block() {
-                    while let Poll::Pending = task.poll() {}
-                } else {
-                    if let Poll::Pending = task.poll() {
-                        task.wake();
-                    }
+                    while task.poll().is_pending() {}
+                } else if task.poll().is_pending() {
+                    task.wake();
                 }
             });
         }
 
         /// A function to get a reference to the `Runtime`
         pub(crate) fn get() -> &'static Runtime {
-            RUNTIME.get_or_init(setup_runtime)
+            &RUNTIME
         }
 
         /// A function to get a new `Spawner` from the `Runtime`
@@ -591,16 +447,17 @@ pub mod runtime {
         }
     }
 
-    /// This is the initialization function for our `RUNTIME` static below. We
-    /// make a call to start it up and then return a `Runtime` to be put in the
-    /// static value
-    fn setup_runtime() -> Runtime {
-        // This is okay to call because any calls to `Runtime::get()` in here will be blocked
-        // until we fully initialize the `Lazy` type thanks to the `call_once`
-        // function on `Once` which blocks until it finishes initializing.
-        // So we start the runtime inside the initialization function, which depends
-        // on it being initialized, but it is able to wait until the runtime is
-        // actually initialized and so it all just works.
+    /// We now create our static type to represent the singular `Runtime` when
+    /// it is finally initialized. We're using the LazyLock type added in Rust
+    /// 1.80.0 which allows us to safely initialize a static at runtime that
+    /// we can then refer too in our program
+    static RUNTIME: std::sync::LazyLock<Runtime> = std::sync::LazyLock::new(|| {
+        // This is okay to call because any calls to `Runtime::get()`
+        // will be blocked until we fully initialize the static which
+        // will block until it finishes initializing. So we start the runtime
+        // inside the initialization function, which depends on it being
+        // initialized, but it is able to wait until the runtime is actually
+        // initialized and so it all just works.
         Runtime::start();
         let queue = Arc::new(Mutex::new(LinkedList::new()));
         Runtime {
@@ -610,11 +467,7 @@ pub mod runtime {
             queue,
             tasks: AtomicUsize::new(0),
         }
-    }
-
-    /// With all of the work we did in `crate::lazy` we can now create our static type to represent
-    /// the singular `Runtime` when it is finally initialized by the `setup_runtime` function.
-    static RUNTIME: crate::lazy::Lazy<Runtime> = crate::lazy::Lazy::new();
+    });
 
     // The queue is a single linked list that contains all of the tasks being
     // run on it. We hand out access to it using a Mutex that has an Arc
@@ -687,6 +540,11 @@ pub mod runtime {
         /// to worry about pinning or more complicated things in the runtime. We
         /// also need to make sure this is `Send + Sync` so we can use it across threads
         /// and so we lock the `Pin<Box<dyn Future>>` inside a `Mutex`.
+        /// It's worth noting that boxing a `Future` is `Pin` since the `Box` is
+        /// a pointer to an item on the heap. The pointer can be moved around, but
+        /// what it points too won't move at all until it is dropped. When we call
+        /// `Box::pin` we're just putting the `Future` on the heap and marking for
+        /// the type system that this type will not move anymore.
         future: Mutex<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>,
         /// We need a way to check if the runtime should block on this task and
         /// so we use a boolean here to check that!

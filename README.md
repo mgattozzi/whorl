@@ -59,7 +59,3 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
-
-This was originally created for my monthly newsletter. You can find that post in
-particular [here](https://mgattozzi.substack.com/p/whorl) or you can sign up for it
-[here](https://mgattozzi.substack.com).
