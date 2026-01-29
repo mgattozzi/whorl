@@ -591,7 +591,7 @@ pub mod runtime {
     /// Since we increase the count everytime we create a new task we also need
     /// to make sure that it *also* decreases the count every time it goes out
     /// of scope. This implementation of `Drop` does just that so that we don't
-    /// need to bookeep about when and where to subtract from the count.
+    /// need to bookkeep about when and where to subtract from the count.
     impl Drop for Task {
         fn drop(&mut self) {
             Runtime::get().tasks.fetch_sub(1, Ordering::Relaxed);
